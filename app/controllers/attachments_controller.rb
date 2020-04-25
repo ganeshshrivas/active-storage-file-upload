@@ -24,12 +24,21 @@ class AttachmentsController < ApplicationController
   # POST /attachments
   # POST /attachments.json
   def create
+    file = params[:attachment][:file]
+    
+    if(file.size > 5120)
+      params[:attachment].delete(:file)
+    end
+    
     @attachment = Attachment.new(attachment_params)
-
     respond_to do |format|
       if @attachment.save
-        format.html { redirect_to @attachment, notice: 'Attachment was successfully created.' }
-        format.json { render :show, status: :created, location: @attachment }
+        if(file.size > 5120)
+          UploaderJob.perform_later(@attachment.id, file.path, file.original_filename)
+          format.html { redirect_to @attachment, notice: 'Attachment created, File is larger so upload take time, we will notify when done ' }
+        else
+          format.html { redirect_to @attachment, notice: 'Attachment was successfully created.' }
+        end
       else
         format.html { render :new }
         format.json { render json: @attachment.errors, status: :unprocessable_entity }
